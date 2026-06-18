@@ -131,3 +131,135 @@ plt.barh(imp_df["feature"], imp_df["importance"])
 plt.gca().invert_yaxis()
 plt.title("Top 15 Features (XGBoost)")
 plt.show()
+
+# =====================================
+# CORE SCOUTING METRICS MODEL
+# =====================================
+
+print("\n" + "="*50)
+print("CORE SCOUTING METRICS MODEL")
+print("="*50)
+
+core_features = [
+    'Age to Level',
+    'wRC+',
+    'K%',
+    'ISO',
+    'Spd',
+    'wSB',
+    'PA'
+]
+
+# Create dataframe
+core_df = df[core_features + ['3YR WAR']].copy()
+core_df = core_df.dropna()
+
+print(f"Core Model Sample Size: {len(core_df)}")
+
+# Define X and y
+X_core = core_df[core_features]
+y_core = core_df['3YR WAR']
+
+# Train/Test Split
+X_train_core, X_test_core, y_train_core, y_test_core = train_test_split(
+    X_core,
+    y_core,
+    test_size=0.20,
+    random_state=42
+)
+
+# =====================================
+# RANDOM FOREST
+# =====================================
+
+rf_core = RandomForestRegressor(
+    n_estimators=500,
+    max_depth=8,
+    min_samples_leaf=5,
+    random_state=42
+)
+
+rf_core.fit(X_train_core, y_train_core)
+
+rf_preds = rf_core.predict(X_test_core)
+
+rf_rmse = np.sqrt(mean_squared_error(y_test_core, rf_preds))
+rf_r2 = r2_score(y_test_core, rf_preds)
+
+print("\nRANDOM FOREST RESULTS")
+print(f"RMSE: {rf_rmse:.3f}")
+print(f"R²: {rf_r2:.3f}")
+
+# =====================================
+# XGBOOST
+# =====================================
+
+xgb_core = XGBRegressor(
+    n_estimators=500,
+    max_depth=4,
+    learning_rate=0.05,
+    subsample=0.8,
+    colsample_bytree=0.8,
+    objective='reg:squarederror',
+    random_state=42
+)
+
+xgb_core.fit(X_train_core, y_train_core)
+
+xgb_preds = xgb_core.predict(X_test_core)
+
+xgb_rmse = np.sqrt(mean_squared_error(y_test_core, xgb_preds))
+xgb_r2 = r2_score(y_test_core, xgb_preds)
+
+print("\nXGBOOST RESULTS")
+print(f"RMSE: {xgb_rmse:.3f}")
+print(f"R²: {xgb_r2:.3f}")
+
+# =====================================
+# FEATURE IMPORTANCE
+# =====================================
+
+importance_df = pd.DataFrame({
+    'Feature': core_features,
+    'Importance': rf_core.feature_importances_
+}).sort_values(
+    by='Importance',
+    ascending=False
+)
+
+print("\nRANDOM FOREST FEATURE IMPORTANCE")
+print(importance_df)
+
+# =====================================
+# MODEL COMPARISON
+# =====================================
+
+print("\n" + "="*50)
+print("MODEL COMPARISON")
+print("="*50)
+
+comparison = pd.DataFrame({
+    'Model': ['Random Forest', 'XGBoost'],
+    'RMSE': [rf_rmse, xgb_rmse],
+    'R2': [rf_r2, xgb_r2]
+})
+
+print(comparison)
+
+# =====================================
+# FEATURE IMPORTANCE PLOT
+# =====================================
+
+import matplotlib.pyplot as plt
+
+plt.figure(figsize=(8,5))
+plt.barh(
+    importance_df['Feature'],
+    importance_df['Importance']
+)
+
+plt.xlabel("Importance")
+plt.ylabel("Feature")
+plt.title("Core Scouting Metrics Feature Importance")
+plt.tight_layout()
+plt.show()
